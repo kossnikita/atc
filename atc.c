@@ -1,15 +1,16 @@
 #include "atc.h"
+#include "SEGGER_RTT.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 #if (_ATC_DEBUG == 1)
-#define	atc_printf(...)     printf(__VA_ARGS__)
+#define atc_printf(...) SEGGER_RTT_printf(0, __VA_ARGS__)
 #else
-#define	atc_printf(...)     {};
+#define atc_printf(...) {};
 #endif
-//####################################################################################################
-void* atc_alloc(size_t size)
+// ####################################################################################################
+void *atc_alloc(size_t size)
 {
 #if (_ATC_RTOS == 0)
   return malloc(size);
@@ -17,7 +18,7 @@ void* atc_alloc(size_t size)
   return pvPortMalloc(size);
 #endif
 }
-//####################################################################################################
+// ####################################################################################################
 void atc_free(void *ptr)
 {
   if (ptr != NULL)
@@ -27,8 +28,8 @@ void atc_free(void *ptr)
     vPortFree(ptr);
 #endif
 }
-//####################################################################################################
-void atc_init(atc_t *atc, const char *name, USART_TypeDef *USARTx, void (*found)(char*))
+// ####################################################################################################
+void atc_init(atc_t *atc, const char *name, USART_TypeDef *USARTx, void (*found)(char *))
 {
   if (atc->inited == true)
     return;
@@ -40,7 +41,7 @@ void atc_init(atc_t *atc, const char *name, USART_TypeDef *USARTx, void (*found)
   atc->inited = true;
   atc_printf("\r\n[%s] inited.\r\n", atc->name);
 }
-//####################################################################################################
+// ####################################################################################################
 bool atc_lock(atc_t *atc, uint32_t wait_ms)
 {
   if (atc->lock == false)
@@ -60,12 +61,12 @@ bool atc_lock(atc_t *atc, uint32_t wait_ms)
   }
   return false;
 }
-//####################################################################################################
+// ####################################################################################################
 void atc_unlock(atc_t *atc)
 {
   atc->lock = false;
 }
-//####################################################################################################
+// ####################################################################################################
 void atc_transmit(atc_t *atc, uint8_t *data, uint16_t len)
 {
   for (uint16_t i = 0; i < len; i++)
@@ -77,7 +78,7 @@ void atc_transmit(atc_t *atc, uint8_t *data, uint16_t len)
   while (!LL_USART_IsActiveFlag_TC(atc->usart))
     atc_delay(1);
 }
-//####################################################################################################
+// ####################################################################################################
 void atc_rxCallback(atc_t *atc)
 {
   if (LL_USART_IsActiveFlag_RXNE(atc->usart))
@@ -91,23 +92,23 @@ void atc_rxCallback(atc_t *atc)
     atc->rxTime = HAL_GetTick();
     return;
   }
-//  if (LL_USART_IsActiveFlag_PE(atc->usart))
-//    LL_USART_ClearFlag_PE(atc->usart);
-//  if (LL_USART_IsActiveFlag_FE(atc->usart))
-//    LL_USART_ClearFlag_FE(atc->usart);
-//  if (LL_USART_IsActiveFlag_ORE(atc->usart))
-//    LL_USART_ClearFlag_ORE(atc->usart);
-//  if (LL_USART_IsActiveFlag_NE(atc->usart))
-//    LL_USART_ClearFlag_NE(atc->usart);
+  //  if (LL_USART_IsActiveFlag_PE(atc->usart))
+  //    LL_USART_ClearFlag_PE(atc->usart);
+  //  if (LL_USART_IsActiveFlag_FE(atc->usart))
+  //    LL_USART_ClearFlag_FE(atc->usart);
+  //  if (LL_USART_IsActiveFlag_ORE(atc->usart))
+  //    LL_USART_ClearFlag_ORE(atc->usart);
+  //  if (LL_USART_IsActiveFlag_NE(atc->usart))
+  //    LL_USART_ClearFlag_NE(atc->usart);
 }
-//####################################################################################################
+// ####################################################################################################
 void atc_search(atc_t *atc)
 {
   for (uint8_t search = 0; search < _ATC_SEARCH_MAX; search++)
   {
     if (atc->search[search] == NULL)
       break;
-    char *str = strstr((char*) atc->rxBuffer, atc->search[search]);
+    char *str = strstr((char *)atc->rxBuffer, atc->search[search]);
     if (str != NULL)
     {
       if (atc->found != NULL)
@@ -115,8 +116,8 @@ void atc_search(atc_t *atc)
     }
   }
 }
-//####################################################################################################
-char* atc_searchAnswer(atc_t *atc, uint8_t items, uint8_t *foundIndex)
+// ####################################################################################################
+char *atc_searchAnswer(atc_t *atc, uint8_t items, uint8_t *foundIndex)
 {
   *foundIndex = 0;
   if (items >= _ATC_SEARCH_CMD_MAX)
@@ -125,7 +126,7 @@ char* atc_searchAnswer(atc_t *atc, uint8_t items, uint8_t *foundIndex)
   {
     if (atc->searchCmd[search] == NULL)
       break;
-    char *str = strstr((char*) atc->rxBuffer, atc->searchCmd[search]);
+    char *str = strstr((char *)atc->rxBuffer, atc->searchCmd[search]);
     if (str != NULL)
     {
       *foundIndex = search + 1;
@@ -134,25 +135,25 @@ char* atc_searchAnswer(atc_t *atc, uint8_t items, uint8_t *foundIndex)
   }
   return NULL;
 }
-//####################################################################################################
+// ####################################################################################################
 void atc_empty(atc_t *atc)
 {
   memset(atc->rxBuffer, 0, _ATC_RXSIZE);
   atc->rxIndex = 0;
 }
-//####################################################################################################
+// ####################################################################################################
 bool atc_available(atc_t *atc)
 {
   if ((atc->rxIndex > 0) && (HAL_GetTick() - atc->rxTime) > _ATC_RXTIMEOUT_MS)
     return true;
   return false;
 }
-//####################################################################################################
+// ####################################################################################################
 bool atc_addSearch(atc_t *atc, const char *str)
 {
   if (atc->searchIndex == _ATC_SEARCH_MAX - 1)
     return false;
-  atc->search[atc->searchIndex] = (char*) atc_alloc(strlen(str) + 1);
+  atc->search[atc->searchIndex] = (char *)atc_alloc(strlen(str) + 1);
   if (atc->search[atc->searchIndex] != NULL)
   {
     strncpy(atc->search[atc->searchIndex], str, strlen(str));
@@ -163,9 +164,9 @@ bool atc_addSearch(atc_t *atc, const char *str)
   else
     return false;
 }
-//####################################################################################################
-int8_t atc_command(atc_t *atc, const char *command, uint32_t timeout_ms, char *answer, uint16_t answer_size,
-    int items, ...)
+// ####################################################################################################
+int8_t atc_command(atc_t *atc, const char *command, uint32_t timeout_ms, char *answer, uint16_t answer_size, int items,
+                   ...)
 {
   if (atc->inited == false)
     return -1;
@@ -178,8 +179,8 @@ int8_t atc_command(atc_t *atc, const char *command, uint32_t timeout_ms, char *a
   va_start(tag, items);
   for (uint8_t i = 0; i < items; i++)
   {
-    char *str = va_arg(tag, char*);
-    atc->searchCmd[i] = (char*) atc_alloc(strlen(str) + 1);
+    char *str = va_arg(tag, char *);
+    atc->searchCmd[i] = (char *)atc_alloc(strlen(str) + 1);
     if (atc->searchCmd[i] != NULL)
     {
       strcpy(atc->searchCmd[i], str);
@@ -189,14 +190,14 @@ int8_t atc_command(atc_t *atc, const char *command, uint32_t timeout_ms, char *a
       break;
   }
   va_end(tag);
-  atc_transmit(atc, (uint8_t*) command, strlen(command));
+  atc_transmit(atc, (uint8_t *)command, strlen(command));
   uint32_t start = HAL_GetTick();
   while (HAL_GetTick() - start < timeout_ms)
   {
     atc_delay(1);
     if (atc_available(atc))
     {
-      atc_printf("[%s] %s", atc->name, (char* )atc->rxBuffer);
+      atc_printf("[%s] %s", atc->name, (char *)atc->rxBuffer);
       atc_search(atc);
       char *found = atc_searchAnswer(atc, items, &foundIndex);
       if (found != NULL && answer != NULL)
@@ -207,11 +208,14 @@ int8_t atc_command(atc_t *atc, const char *command, uint32_t timeout_ms, char *a
     }
   }
   for (uint8_t i = 0; i < items; i++)
+  {
     atc_free(atc->searchCmd[i]);
+    atc->searchCmd[i] = NULL;
+  }
   atc_unlock(atc);
   return foundIndex;
 }
-//####################################################################################################
+// ####################################################################################################
 void atc_loop(atc_t *atc)
 {
   if (atc->inited == false)
@@ -233,10 +237,10 @@ void atc_loop(atc_t *atc)
     return;
   if (atc_available(atc))
   {
-    atc_printf("[%s] %s", atc->name, (char* )atc->rxBuffer);
+    atc_printf("[%s] %s", atc->name, (char *)atc->rxBuffer);
     atc_search(atc);
     atc_empty(atc);
   }
   atc_unlock(atc);
 }
-//####################################################################################################
+// ####################################################################################################
